@@ -2,9 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/DemoProtocolDiscovery.iml" filepath="$PROJECT_DIR$/DemoProtocolDiscovery.iml" />
+      <module fileurl="file://C:\Users\leb\TestGit\SyncManager\DemoProtocolDiscovery.iml" filepath="C:\Users\leb\TestGit\SyncManager\DemoProtocolDiscovery.iml" />
       <module fileurl="file://C:\TempStudio\LibrarySynchro\DemoProtocolDiscovery.iml" filepath="C:\TempStudio\LibrarySynchro\DemoProtocolDiscovery.iml" />
       <module fileurl="file://C:\Users\leb\Documents\LibrairieSynchro\DemoProtocolDiscovery\LibrarySynchro.iml" filepath="C:\Users\leb\Documents\LibrairieSynchro\DemoProtocolDiscovery\LibrarySynchro.iml" />
+      <module fileurl="file://$PROJECT_DIR$/SyncManager.iml" filepath="$PROJECT_DIR$/SyncManager.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/sbpd/sbpd.iml" filepath="$PROJECT_DIR$/sbpd/sbpd.iml" />
       <module fileurl="file://$PROJECT_DIR$/synchroedtftpj/synchroedtftpj.iml" filepath="$PROJECT_DIR$/synchroedtftpj/synchroedtftpj.iml" />
