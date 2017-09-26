@@ -1,0 +1,81 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "ee1c34bf7654a15ae7e81eca9eab050c",
+    "entities": [
+      {
+        "tableName": "T_LocalFiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`name` TEXT, `size` INTEGER, `lastModification` INTEGER, `folderToSync` TEXT, PRIMARY KEY(`name`))",
+        "fields": [
+          {
+            "fieldPath": "mName",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mSize",
+            "columnName": "size",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mLastModification",
+            "columnName": "lastModification",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mFolderToSync",
+            "columnName": "folderToSync",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "name"
+          ],
+          "autoGenerate": false
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "T_RemoteFiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`name` TEXT, `size` INTEGER, `lastModification` INTEGER, `folderToSync` TEXT, PRIMARY KEY(`name`))",
+        "fields": [
+          {
+            "fieldPath": "mName",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mSize",
+            "columnName": "size",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mLastModification",
+            "columnName": "lastModification",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mFolderToSync",
+            "columnName": "folderToSync",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "name"
+          ],
+          "autoGenerate": false
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, \"ee1c34bf7654a15ae7e81eca9eab050c\")"
+    ]
+  }
+}

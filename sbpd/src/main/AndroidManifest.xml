@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.cargo.sbpd">
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <application>
+        <activity
+            android:name=".ui.activities.DialogProgressSyncActivity"
+            android:excludeFromRecents="true"
+            android:label="@string/title_activity_dialog_progress_sync"
+            android:theme="@style/NoTitleDialog"></activity>
+
+        <service
+            android:name=".jobs.CancelService"
+            android:exported="false"></service>
+    </application>
+
+</manifest>

@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">SynchronisationByProtocolDiscovery</string>
+    <string name="update">Update</string>
+    <string name="title_activity_dialog_progress_sync">Update progression</string>
+    <string name="sbpd_current">In progress :</string>
+    <string name="sbpd_next">Pending :</string>
+    <string name="sbpd_speed">Speed :</string>
+    <string name="default_speed">-</string>
+    <string name="sbpd_list_folders_to_sync">Folders to synchronize</string>
+    <string name="sbpd_no_sync">No pending synchronization</string>
+    <string name="sbpd_historique">Historique</string>
+    <string name="sbpd_calcul_diff">Calculating differences…</string>
+    <string name="sbpd_check_network">Checking network…</string>
+    <string name="started_at">Start : </string>
+    <string name="duration">Duration :</string>
+</resources>
