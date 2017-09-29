@@ -52,16 +52,19 @@ public class SyncManagerBuilder {
         return this;
     }
 
-    public void setNotifChooseClientFactory(AbstractNotifChooseClientFactory notifChooseClientFactory) {
+    public SyncManagerBuilder setNotifChooseClientFactory(AbstractNotifChooseClientFactory notifChooseClientFactory) {
         mNotifChooseClientFactory = notifChooseClientFactory;
+        return this;
     }
 
-    public void setNotifEstimatingFactory(AbstractNotifEstimatingDiffFactory notifEstimatingFactory) {
+    public SyncManagerBuilder setNotifEstimatingFactory(AbstractNotifEstimatingDiffFactory notifEstimatingFactory) {
         mNotifEstimatingFactory = notifEstimatingFactory;
+        return this;
     }
 
-    public void setNotifUpdatingFactory(AbstractNotifUpdatingFactory notifUpdatingFactory) {
+    public SyncManagerBuilder setNotifUpdatingFactory(AbstractNotifUpdatingFactory notifUpdatingFactory) {
         mNotifUpdatingFactory = notifUpdatingFactory;
+        return this;
     }
 
     public SyncManager build() {

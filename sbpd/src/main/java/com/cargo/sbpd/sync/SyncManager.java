@@ -269,13 +269,13 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
                 }
 
                 //todo add a filter on remoteFileSize != 0 then get the files with remoteFileSize = 0 and create the directories
-                List<RemoteFile> filesToDownload = AppDatabase.getInstance().remoteFileDao()
+                List<RemoteFile> filesOnServerNotTablet = AppDatabase.getInstance().remoteFileDao()
                         .getFilesOnServerNotTablet(folder.getFile().getAbsolutePath(), folder.getRemotePath());
-                Log.d("filesToDownload", "Size : " + filesToDownload.size());
+                Log.d("filesToDownload", "Size : " + filesOnServerNotTablet.size());
                 if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
-                    mCurrentClient.downloadListOfFiles(folder, filesToDownload);
+                    mCurrentClient.downloadListOfFiles(folder, filesOnServerNotTablet);
                 } else if (folder.getDirection() == AbstractSynchroClient.Direction.LOCAL_TO_REMOTE) {
-                    mCurrentClient.deleteListOfFiles(folder, filesToDownload);
+                    mCurrentClient.deleteListOfFiles(folder, filesOnServerNotTablet);
                 }
 
 //                List<RemoteFile> EmptyFoldersToDownload = AppDatabase.getInstance().remoteFileDao().getEmptyFoldersOnServerNotTablet(folder.getFile().getAbsolutePath(), folder.getRemotePath());
