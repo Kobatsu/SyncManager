@@ -48,41 +48,42 @@ import io.reactivex.schedulers.Schedulers;
 import static com.cargo.sbpd.jobs.CancelService.ACTION_CANCEL;
 
 /**
- *
  * This class has some work to be done until it's clean. The UI is ugly and the data displayed is not always good.
  */
-public class DialogProgressSyncActivity extends AppCompatActivity implements LifecycleRegistryOwner, INetworkSpeedListener {
+public class DialogProgressSyncActivity extends AppCompatActivity implements INetworkSpeedListener {
 
+    private Button mShowAllFolders;
     private TextView mCurrentFolder;
     private TextView mCurrentFile;
     private TextView mCurrentSize;
     private TextView mCurrentPercent;
+    private TextView mLeftTitle;
+    private TextView mSpeedUp;
+    private TextView mSpeedDown;
+    private View mCurrentTitle;
+    private View mCurrentCard;
+    private View mFab;
     private ImageView mCurrentActionIcon;
     private RecyclerView mCurrentListTodo;
     private ActionsListAdapter mTodoAdapter;
     private LiveData<List<ActionToDo>> mTodoLiveData;
-    private TextView mLeftTitle;
-    private LifecycleRegistry mLifecycleRegistry = new LifecycleRegistry(this);
+    private LiveData<List<ActionDone>> mCurrentFileLiveData;
+
     private String mLastSpeed;
     private List<FolderToSync> mListFoldersToSync;
     private int mIndexFolder;
-    private Button mShowAllFolders;
     private Scheduler mScheduler;
     private Date mDate;
-    private LiveData<List<ActionDone>> mCurrentFileLiveData;
     private ProgressBar mCurrentProgress;
     private Observer<List<ActionDone>> mObserver;
-    private TextView mSpeedUp;
-    private TextView mSpeedDown;
+
     private NetworkListener mNetworkListener;
     private FoldersListAdapter mListFoldersAdapter;
     private Disposable mSubscription;
-    private View mCurrentTitle;
-    private View mCurrentCard;
+
     private ActionsDoneListAdapter mListActionsDoneAdapter;
     private LiveData<List<ActionDone>> mHistoriqueLiveData;
     private Observer<List<ActionDone>> mObserverActionsDone;
-    private View mFab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,9 +125,12 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
             DialogBuilder.showListDialog(DialogProgressSyncActivity.this,
                     getString(R.string.sbpd_list_folders_to_sync), mListFoldersAdapter);
         });
-        findViewById(R.id.sbpd_historique).setOnClickListener(view ->
-                DialogBuilder.showListDialog(DialogProgressSyncActivity.this,
-                        getString(R.string.sbpd_historique), mListActionsDoneAdapter));
+
+        findViewById(R.id.sbpd_historique).setOnClickListener(view -> {
+            observeHistorique();
+            DialogBuilder.showListDialog(DialogProgressSyncActivity.this,
+                    getString(R.string.sbpd_historique), mListActionsDoneAdapter);
+        });
 
         mNetworkListener = new NetworkListener(this);
 
@@ -134,8 +138,11 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
         mListActionsDoneAdapter = new ActionsDoneListAdapter(this);
 
 
+        // Init the LiveDatas
         mTodoLiveData = AppDatabase.getInstance().localFileDao().getActionsToDo();
         mHistoriqueLiveData = AppDatabase.getInstance().actionDoneDao().getAll();
+
+        // We want to observe the acttion to do and the last action done (but this one needs a date as a parameter so we can't observe it yet)
         observeTodo();
     }
 
@@ -153,7 +160,6 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
 
     private void observeLastActionDone() {
         if (mCurrentFileLiveData != null) {
-
             mCurrentFileLiveData.removeObserver(mObserver);
             mCurrentFileLiveData.observe(DialogProgressSyncActivity.this, mObserver = o -> {
                 if (o.size() == 1) {
@@ -170,9 +176,11 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
         }
     }
 
+    /**
+     * Used in a dialog. The adapter is passed as a parameter
+     */
     private void observeHistorique() {
         if (mHistoriqueLiveData != null) {
-
             mHistoriqueLiveData.removeObserver(mObserverActionsDone);
             mHistoriqueLiveData.observe(DialogProgressSyncActivity.this, mObserverActionsDone = o -> {
                 mListActionsDoneAdapter.dataChanged(o);
@@ -182,9 +190,79 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
         }
     }
 
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mNetworkListener.startListening();
+        if (mSubscription != null && !mSubscription.isDisposed()) {
+            mSubscription.dispose();
+        }
+
+        mSubscription = RxBus.getRxBusSingleton().asFlowable()
+                .subscribeOn(mScheduler = Schedulers.newThread())
+                .subscribe(event -> {
+                    if (event instanceof RxMessage && ((RxMessage) event).getType().equals(RxMessage.Type.RESPONSE)) {
+                        RxMessage rxResponse = (RxMessage) event;
+                        if (rxResponse.getSender() == null || rxResponse.getSender().equals(DialogProgressSyncActivity.class.getSimpleName())) {
+                            if (rxResponse.getRequest().equals(SyncManager.REQUEST_LIST_FOLDERS)) {
+                                // We receive the answer at the question "what are the folders to update?"
+                                if (rxResponse.getObject() instanceof ListFoldersToSyncState) {
+                                    ListFoldersToSyncState temp = ((ListFoldersToSyncState) rxResponse.getObject());
+                                    mListFoldersToSync = temp.getFoldersToSync();
+                                    mIndexFolder = temp.getPosition();
+                                    runOnUiThread(this::updateFolders);
+                                }
+                            } else if (rxResponse.getRequest().equals(SyncManager.REQUEST_START_DATE)) {
+                                // We receive the answer at the question "When did the update start?"
+                                if (rxResponse.getObject() instanceof Date) {
+                                    mDate = (Date) (rxResponse.getObject());
+                                    runOnUiThread(() -> {
+                                        // Now that we have a date we can observe the LiveData object
+                                        mCurrentFileLiveData = AppDatabase.getInstance().actionDoneDao().getLastNotFinished(mDate);
+                                        observeLastActionDone();
+                                    });
+                                }
+                            }
+                        } else {
+                            //Log.d("RxCalls", "Caller : " + rxResponse.getSender());
+                            // There are calls every time a file is updated... No need to do anything here since we use the LiveData instead
+                        }
+                    }
+                });
+
+        new Handler().postDelayed(() -> {
+            RxBus.getRxBusSingleton().send(new RxMessage(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_LIST_FOLDERS, RxMessage.Type.REQUEST, null));
+            RxBus.getRxBusSingleton().send(new RxMessage(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_START_DATE, RxMessage.Type.REQUEST, null));
+        }, 1000);
+    }
+
+
+    @Override
+    protected void onPause() {
+        RxBus.getRxBusSingleton().asFlowable().unsubscribeOn(mScheduler);
+        mScheduler = null;
+        mNetworkListener.stopListening();
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        if (mSubscription != null && !mSubscription.isDisposed()) {
+            mSubscription.dispose();
+        }
+        super.onStop();
+    }
+
     private void updateFolders() {
-        mCurrentFolder.setText(mListFoldersToSync.get(mIndexFolder).getDisplayName());
-        mShowAllFolders.setText((mIndexFolder + 1) + " / " + mListFoldersToSync.size());
+        if (mIndexFolder >= mListFoldersToSync.size()) {
+            mCurrentFolder.setText("-");
+            mShowAllFolders.setText(mListFoldersToSync.size()+"");
+        } else {
+            mCurrentFolder.setText(mListFoldersToSync.get(mIndexFolder).getDisplayName());
+            mShowAllFolders.setText((mIndexFolder + 1) + " / " + mListFoldersToSync.size());
+        }
+
         mListFoldersAdapter.update(mListFoldersToSync, mIndexFolder);
 
         if (mListFoldersToSync.size() == 0) {
@@ -200,61 +278,22 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mNetworkListener.startListening();
-        if (mScheduler != null) {
-            RxBus.getRxBusSingleton().asFlowable().unsubscribeOn(mScheduler);
-        }
-        Log.d("RxBus", "subscribe");
-
-        mSubscription = RxBus.getRxBusSingleton().asFlowable()
-                .subscribeOn(mScheduler = Schedulers.newThread())
-                .subscribe(event -> {
-                    if (event instanceof RxMessage && ((RxMessage) event).getType().equals(RxMessage.Type.RESPONSE)) {
-                        RxMessage rxResponse = (RxMessage) event;
-                        if (rxResponse.getSender() == null || rxResponse.getSender().equals(DialogProgressSyncActivity.class.getSimpleName())) {
-                            if (rxResponse.getRequest().equals(SyncManager.REQUEST_LIST_FOLDERS)) {
-                                if (rxResponse.getObject() instanceof ListFoldersToSyncState) {
-                                    ListFoldersToSyncState temp = ((ListFoldersToSyncState) rxResponse.getObject());
-                                    mListFoldersToSync = temp.getFoldersToSync();
-                                    mIndexFolder = temp.getPosition();
-                                    runOnUiThread(this::updateFolders);
-                                }
-                            } else if (rxResponse.getRequest().equals(SyncManager.REQUEST_START_DATE)) {
-                                if (rxResponse.getObject() instanceof Date) {
-                                    mDate = (Date) (rxResponse.getObject());
-                                    runOnUiThread(() -> {
-                                        mCurrentFileLiveData = AppDatabase.getInstance().actionDoneDao().getLastNotFinished(mDate);
-                                        observeLastActionDone();
-                                    });
-                                }
-                            }
-                        } else {
-                            Log.d("RxCalls", "Caller : " + rxResponse.getSender());
-                        }
-                    }
-                });
-//        RxBus.getRxBusSingleton().send(new RxRequest(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_LIST_FOLDERS, null));
-//        RxBus.getRxBusSingleton().send(new RxRequest(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_START_DATE, null));
-        new Handler().postDelayed(() -> {
-            RxBus.getRxBusSingleton().send(new RxMessage(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_LIST_FOLDERS, RxMessage.Type.REQUEST, null));
-            RxBus.getRxBusSingleton().send(new RxMessage(DialogProgressSyncActivity.class.getSimpleName(), SyncManager.REQUEST_START_DATE, RxMessage.Type.REQUEST, null));
-        }, 1000);
-        observeHistorique();
-    }
-
     private void updateCurrentAction(ActionDone actionDone) {
         switch (actionDone.getActionType()) {
             case LocalFileDao.ActionType.DOWNLOAD:
                 mCurrentActionIcon.setImageResource(R.drawable.ic_file_download_black_24dp);
+                mCurrentPercent.setVisibility(View.VISIBLE);
+                mCurrentProgress.setIndeterminate(false);
                 break;
             case LocalFileDao.ActionType.UPLOAD:
                 mCurrentActionIcon.setImageResource(R.drawable.ic_file_upload_black_24dp);
+                mCurrentPercent.setVisibility(View.VISIBLE);
+                mCurrentProgress.setIndeterminate(false);
                 break;
             case LocalFileDao.ActionType.DELETE:
                 mCurrentActionIcon.setImageResource(R.drawable.ic_close_black_24dp_vector);
+                mCurrentPercent.setVisibility(View.INVISIBLE);
+                mCurrentProgress.setIndeterminate(true);
                 break;
         }
         mCurrentFile.setText(actionDone.getRemoteFilePath());
@@ -262,29 +301,7 @@ public class DialogProgressSyncActivity extends AppCompatActivity implements Lif
         double percent = (actionDone.getSizeTransferred() / (actionDone.getSize() * 1.0)) * 100;
         mCurrentPercent.setText(FormatUtils.formatPourcentage(percent, 2));
         mCurrentProgress.setMax(10000);
-        mCurrentProgress.setProgress((int) (percent * 10));
-    }
-
-
-    @Override
-    protected void onPause() {
-        RxBus.getRxBusSingleton().asFlowable().unsubscribeOn(mScheduler);
-        mScheduler = null;
-        mNetworkListener.stopListening();
-        super.onPause();
-    }
-
-    @Override
-    public LifecycleRegistry getLifecycle() {
-        return mLifecycleRegistry;
-    }
-
-    @Override
-    protected void onStop() {
-        if (mSubscription != null && !mSubscription.isDisposed()) {
-            mSubscription.dispose();
-        }
-        super.onStop();
+        mCurrentProgress.setProgress((int) (percent * 100));
     }
 
     @Override
