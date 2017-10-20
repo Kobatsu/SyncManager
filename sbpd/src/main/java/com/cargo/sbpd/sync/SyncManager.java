@@ -191,6 +191,7 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
         mStartDate = new Date(System.currentTimeMillis());
         mNotifChooseClientFactory.create(mContext).show();
 
+        // Step 1 : Choose client for listing
         mCurrentClient = chooseClientForListing(mListSynchroClient);
 
         ConnectionClassManager.getInstance().register(this);
@@ -205,7 +206,9 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
 
         mNotifChooseClientFactory.cancelAll();
 
+        // Step 2 : Do the listings
         mPosition = 0;
+        boolean errorInListing = false;
         for (FolderToSync folder : mListFolders) {
             if (mCancel) {
                 break;
@@ -235,6 +238,7 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
 
             } catch (IOException e) {
                 e.printStackTrace();
+                errorInListing = true;
             }
             RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
                     EVENT_FOLDER_ESTIMATING_ENDED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
@@ -243,40 +247,42 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
         //todo Remove exports when in production
         AppDatabase.exportDatabase(mContext, "before.db");
 
+        // Step 3 : if it's ok, keep going and choose a client for actions
+        if (!errorInListing) {
+            mPosition = 0;
+            mCurrentClient = chooseClientForActions(mListSynchroClient);
 
-        mPosition = 0;
-        mCurrentClient = chooseClientForActions(mListSynchroClient);
-
-        for (FolderToSync folder : mListFolders) {
-            if (mCancel) {
+            // Step 4 : do the actions
+            for (FolderToSync folder : mListFolders) {
+                if (mCancel) {
 //                RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
 //                        EVENT_FOLDER_SYNCING_ENDED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
-                break;
-            }
-            RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
-                    EVENT_FOLDER_SYNCING_STARTED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
-            RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(), REQUEST_LIST_FOLDERS, RxMessage.Type.RESPONSE, new ListFoldersToSyncState(mPosition, mListFolders)));
-
-            try {
-                // Ready to check the difference
-                List<LocalFile> filesToDelete = AppDatabase.getInstance().localFileDao()
-                        .getFilesOnTabletNotServer(folder.getFile().getAbsolutePath(), folder.getRemotePath());
-                Log.d("filesToDelete", "Size : " + filesToDelete.size());
-                if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
-                    FileLister.deleteListOfFiles(folder, filesToDelete, mCurrentClient.getLocalFileConverter());
-                } else if (folder.getDirection() == AbstractSynchroClient.Direction.LOCAL_TO_REMOTE) {
-                    mCurrentClient.uploadListOfFiles(folder, filesToDelete);
+                    break;
                 }
+                RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
+                        EVENT_FOLDER_SYNCING_STARTED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
+                RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(), REQUEST_LIST_FOLDERS, RxMessage.Type.RESPONSE, new ListFoldersToSyncState(mPosition, mListFolders)));
 
-                //todo add a filter on remoteFileSize != 0 then get the files with remoteFileSize = 0 and create the directories
-                List<RemoteFile> filesOnServerNotTablet = AppDatabase.getInstance().remoteFileDao()
-                        .getFilesOnServerNotTablet(folder.getFile().getAbsolutePath(), folder.getRemotePath());
-                Log.d("filesToDownload", "Size : " + filesOnServerNotTablet.size());
-                if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
-                    mCurrentClient.downloadListOfFiles(folder, filesOnServerNotTablet);
-                } else if (folder.getDirection() == AbstractSynchroClient.Direction.LOCAL_TO_REMOTE) {
-                    mCurrentClient.deleteListOfFiles(folder, filesOnServerNotTablet);
-                }
+                try {
+                    // Ready to check the difference
+                    List<LocalFile> filesToDelete = AppDatabase.getInstance().localFileDao()
+                            .getFilesOnTabletNotServer(folder.getFile().getAbsolutePath(), folder.getRemotePath());
+                    Log.d("filesToDelete", "Size : " + filesToDelete.size());
+                    if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
+                        FileLister.deleteListOfFiles(folder, filesToDelete, mCurrentClient.getLocalFileConverter());
+                    } else if (folder.getDirection() == AbstractSynchroClient.Direction.LOCAL_TO_REMOTE) {
+                        mCurrentClient.uploadListOfFiles(folder, filesToDelete);
+                    }
+
+                    //todo add a filter on remoteFileSize != 0 then get the files with remoteFileSize = 0 and create the directories
+                    List<RemoteFile> filesOnServerNotTablet = AppDatabase.getInstance().remoteFileDao()
+                            .getFilesOnServerNotTablet(folder.getFile().getAbsolutePath(), folder.getRemotePath());
+                    Log.d("filesToDownload", "Size : " + filesOnServerNotTablet.size());
+                    if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
+                        mCurrentClient.downloadListOfFiles(folder, filesOnServerNotTablet);
+                    } else if (folder.getDirection() == AbstractSynchroClient.Direction.LOCAL_TO_REMOTE) {
+                        mCurrentClient.deleteListOfFiles(folder, filesOnServerNotTablet);
+                    }
 
 //                List<RemoteFile> EmptyFoldersToDownload = AppDatabase.getInstance().remoteFileDao().getEmptyFoldersOnServerNotTablet(folder.getFile().getAbsolutePath(), folder.getRemotePath());
 //                if (folder.getDirection() == AbstractSynchroClient.Direction.REMOTE_TO_LOCAL) {
@@ -285,12 +291,13 @@ public class SyncManager implements ConnectionClassManager.ConnectionClassStateC
 //                    synchroClient.deleteEmptyFolders(folder, filesToDownload);
 //                }
 
-            } catch (IOException e) {
-                e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
+                        EVENT_FOLDER_SYNCING_ENDED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
+                mPosition++;
             }
-            RxBus.getRxBusSingleton().send(new RxMessage(SyncManager.class.getSimpleName(),
-                    EVENT_FOLDER_SYNCING_ENDED, RxMessage.Type.BROADCAST, new ListFoldersToSyncState(mPosition, mListFolders)));
-            mPosition++;
         }
     }
 

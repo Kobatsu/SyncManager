@@ -76,17 +76,20 @@ public class DemoActivity extends AppCompatActivity {
                 ApacheFTPClientLaggy clientLaggy = new ApacheFTPClientLaggy(Credentials.FTP_ADDRESS, Credentials.FTP_USER, Credentials.FTP_PASSWORD);
                 ApacheFTPClientSuperLaggy clientSuperLaggy = new ApacheFTPClientSuperLaggy(Credentials.FTP_ADDRESS, Credentials.FTP_USER, Credentials.FTP_PASSWORD);
                 EdtFTPjClient edtFTPjClient = new EdtFTPjClient(Credentials.FTP_ADDRESS, Credentials.FTP_USER, Credentials.FTP_PASSWORD);
-
+                edtFTPjClient.setLocalFileConverter(new CustomLocalFileConverter2(
+                        new File(Environment.getExternalStorageDirectory(), "/appli_cargo/app_data/%1$s/photos/%2$s").getAbsolutePath(),
+                        "/photos/"));
                 builder.addClient(edtFTPjClient);
 //                builder.addClient(client);
 //                builder.addClient(clientLaggy);
 //                builder.addClient(clientSuperLaggy);
 
-                builder.addFolder(new FolderToSync("Some food", new File(f, "Food"), "/Food/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
-                builder.addFolder(new FolderToSync("Beautiful cats", new File(f, "Cats"), "/Cats/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
-                builder.addFolder(new FolderToSync("Sport", new File(f, "Sport"), "/Sport/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
-                builder.addFolder(new FolderToSync("SportUpload", new File(f, "Sport"), "/SportCopy", AbstractSynchroClient.Direction.LOCAL_TO_REMOTE));
-                builder.addFolder(new FolderToSync("Others", new File(f, "Others"), "/Others", AbstractSynchroClient.Direction.LOCAL_TO_REMOTE));
+//                builder.addFolder(new FolderToSync("Some food", new File(f, "Food"), "/Food/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
+                builder.addFolder(new FolderToSync("COGEX - Photos", new File(Environment.getExternalStorageDirectory(), "appli_cargo/app_data/COGEX/photos/"), "/COGEX/photos/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
+//                builder.addFolder(new FolderToSync("Beautiful cats", new File(f, "Cats"), "/Cats/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
+//                builder.addFolder(new FolderToSync("Sport", new File(f, "Sport"), "/Sport/", AbstractSynchroClient.Direction.REMOTE_TO_LOCAL));
+//                builder.addFolder(new FolderToSync("SportUpload", new File(f, "Sport"), "/SportCopy", AbstractSynchroClient.Direction.LOCAL_TO_REMOTE));
+//                builder.addFolder(new FolderToSync("Others", new File(f, "Others"), "/Others", AbstractSynchroClient.Direction.LOCAL_TO_REMOTE));
 //                builder.setLocalFileConverter(new CustomLocalFileConverter());
 //                builder.setRemoteFileConverter(new CustomRemoteFileConverter());
 
